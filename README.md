@@ -17,7 +17,7 @@ A small lab connecting a Windows VM and an Ubuntu VM over a Tailscale (WireGuard
 1. Created a Tailscale tailnet and joined both VMs to it.
 2. Verified connectivity at three layers:
    - **Tailscale layer:** `tailscale ping` confirmed a **direct peer-to-peer connection over IPv6** (no relay), typically under 35 ms.
-   - **IP layer:** standard ICMP `ping` from Ubuntu to Windows: 0% packet loss, ~4–10 ms average. The TTL of 128 confirmed the responder was the Windows host (Linux defaults to 64).
+   - **IP layer:** standard ICMP `ping` from Ubuntu to Windows: 0% packet loss, low-millisecond latency after the first packet. The TTL of 128 confirmed the responder was the Windows host (Linux defaults to 64).
    - **Name resolution:** MagicDNS resolved the short hostname to the full tailnet name (`<host>.<tailnet>.ts.net`).
 3. Installed and enabled OpenSSH server on Ubuntu and connected from Windows over the tailnet.
 4. Before trusting the connection, **verified the SSH host key fingerprint** on the Ubuntu server against the one presented to the Windows client, which guards against man-in-the-middle attacks.
