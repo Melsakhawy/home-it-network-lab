@@ -21,6 +21,7 @@ A small lab connecting a Windows VM and an Ubuntu VM over a Tailscale (WireGuard
    - **Name resolution:** MagicDNS resolved the short hostname to the full tailnet name (`<host>.<tailnet>.ts.net`).
 3. Installed and enabled OpenSSH server on Ubuntu and connected from Windows over the tailnet.
 4. Before trusting the connection, **verified the SSH host key fingerprint** on the Ubuntu server against the one presented to the Windows client, which guards against man-in-the-middle attacks.
+5. **Hardened SSH:** switched to key-based authentication and disabled password login (see [SSH hardening](#ssh-hardening)).
 
 ## Screenshots
 
@@ -43,6 +44,46 @@ A small lab connecting a Windows VM and an Ubuntu VM over a Tailscale (WireGuard
 **SSH session from Windows into Ubuntu over the tailnet**
 
 ![ssh session](ssh-session.png)
+
+## SSH hardening
+
+After confirming password-based SSH worked, I replaced it with key-based authentication.
+
+1. **Generated an Ed25519 key pair on Windows**, protected with a passphrase so the private key is useless if copied:
+   ```powershell
+   ssh-keygen -t ed25519 -C "windows-vm to ubuntu-vm"
+   ```
+2. **Installed the public key on Ubuntu** with correct permissions (`~/.ssh` at 700, `authorized_keys` at 600). Windows has no `ssh-copy-id`, so I piped the key over SSH:
+   ```powershell
+   type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh mohamed@ubuntu-vm "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+   ```
+3. **Confirmed key login worked before disabling passwords**, to avoid locking myself out.
+4. **Disabled password login** with a drop-in config file, `/etc/ssh/sshd_config.d/01-hardening.conf`:
+   ```
+   PasswordAuthentication no
+   KbdInteractiveAuthentication no
+   PermitRootLogin no
+   PubkeyAuthentication yes
+   ```
+   The `01-` prefix matters: sshd processes drop-in files alphabetically and keeps the **first** value it sees, so this file takes priority over any default drop-ins that re-enable passwords.
+5. **Validated and applied the config:** `sudo sshd -t` (syntax check), `sudo systemctl restart ssh`, then confirmed the effective settings with `sudo sshd -T`.
+6. **Tested that password login is rejected** by forcing it from the client:
+   ```powershell
+   ssh -o PubkeyAuthentication=no mohamed@ubuntu-vm
+   # Permission denied (publickey).
+   ```
+
+**Key-based login (prompts for the key passphrase, not the account password)**
+
+![key login](key-login.png)
+
+**Effective sshd settings after hardening**
+
+![sshd config](sshd-config.png)
+
+**Password login rejected**
+
+![password rejected](password-rejected.png)
 
 ## Troubleshooting log
 
@@ -83,10 +124,11 @@ ssh <user>@<ubuntu-hostname>
 - The difference between testing the overlay network (`tailscale ping`) and testing normal IP traffic (`ping`), and why one can succeed while the other fails, for example when a host firewall blocks ICMP.
 - How MagicDNS gives devices stable names within the tailnet.
 - Why SSH host key verification matters, and how to check it properly rather than just typing "yes".
+- How SSH key authentication works (private key stays on the client, public key goes on the server), and how sshd drop-in config precedence works.
 - Reading package manager output to find the actual cause of an install failure instead of retrying blindly.
 
 ## Next steps
 
 - Use Tailscale ACLs to restrict which devices can reach SSH.
-- Switch SSH to key-based authentication and disable password login.
+- Add Fail2ban or restrict SSH to listen only on the Tailscale interface.
 - Configure one VM as a subnet router to reach non-Tailscale devices on the lab network.
