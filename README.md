@@ -266,7 +266,7 @@ Pinging the Windows VM over Tailscale produces **no ICMP at all** on the physica
 | Port 8080 reachable over Tailscale despite UFW denying incoming traffic | `iptables -S` showed Tailscale's `ts-input` chain accepting all `tailscale0` traffic before UFW's chains | `tailscale set --netfilter-mode=nodivert` plus `ufw allow 41641/udp` |
 | Leftover UFW rules allowing SSH and HTTP from anywhere | Audited `ufw status verbose` | Deleted the rules that contradicted the intended policy |
 | Windows block rule had no effect | `Get-NetFirewallProfile` showed all three profiles disabled | Re-enabled the firewall on all profiles; the rule then worked |
-| Ubuntu VM froze during a long Wireshark capture | Capture had run for about 40 minutes and held thousands of packets in memory on a low-RAM VM | Powered off the VM, increased its memory, and used short, targeted captures |
+| Ubuntu VM froze during a long Wireshark capture | A live capture had been running for about 40 minutes, with Wireshark continuously processing and displaying thousands of packets | Powered off and restarted the VM, then used short, targeted captures |
 | Tunnel packets hard to find among background traffic | Tailscale sends frequent STUN packets on the same port | Filtered with `udp.port == 41641 && !stun` |
 
 ## What I learned
